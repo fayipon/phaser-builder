@@ -10,6 +10,24 @@ const DEMOS: DemoCardProps[] = [
     href: '/demo-0001',
     tag: 'React',
   },
+  {
+    title: '像素轉化器',
+    description: '上傳圖片即時像素化 — 前端 Median-Cut 減色演算法 + Phaser 渲染像素方塊，可匯出 JSON。',
+    href: '/demo-0002',
+    tag: 'Phaser',
+  },
+  {
+    title: 'JSON Banner 背景',
+    description: '匯入像素 JSON 資料，Phaser 渲染為動態 Banner 背景，含 shimmer 動畫與覆蓋文字。',
+    href: '/demo-0003',
+    tag: 'Phaser',
+  },
+  {
+    title: 'Ocean Day Banner',
+    description: '左文右圖分割式海洋節 Banner — 鯨魚、魚群、珊瑚、泡泡全部以 Phaser Graphics API 程式生成。',
+    href: '/demo-0004',
+    tag: 'Phaser',
+  },
 ]
 
 export default function HomePage() {
