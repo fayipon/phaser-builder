@@ -1,0 +1,54 @@
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  height: 60px;
+  border-bottom: 1px solid var(--color-border);
+  background: rgba(13, 13, 26, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  line-height: 1.2;
+}
+
+.brandName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.brandTagline {
+  font-size: 0.65rem;
+  color: var(--color-muted);
+  letter-spacing: 0.03em;
+}
+
+.externalLinks {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.extLink {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.extLink:hover {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}

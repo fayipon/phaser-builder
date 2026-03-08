@@ -1,0 +1,114 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.back {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.back:hover {
+  color: var(--color-text);
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sub {
+  margin-top: 0.25rem;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+/* ── Stage ───────────────────────────────────────────────── */
+.stage {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  margin: 2rem auto;
+  aspect-ratio: 1200 / 420;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* Phaser injects a <canvas> inside this div */
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ── Text overlay ────────────────────────────────────────── */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 2rem;
+}
+
+.badge {
+  font-family: 'Courier New', monospace;
+  font-size: clamp(0.65rem, 1.5vw, 0.85rem);
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+
+.slideTitle {
+  font-size: clamp(1.4rem, 5vw, 3rem);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.accentLine {
+  width: clamp(32px, 5%, 56px);
+  height: 3px;
+  border-radius: 2px;
+  animation: linePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes linePulse {
+  0%, 100% { transform: scaleX(1);   opacity: 1; }
+  50%       { transform: scaleX(1.6); opacity: 0.55; }
+}
+
+.slideSub {
+  font-size: clamp(0.8rem, 2vw, 1rem);
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+  max-width: 42ch;
+  line-height: 1.5;
+}

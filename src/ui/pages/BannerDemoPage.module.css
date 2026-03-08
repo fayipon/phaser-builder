@@ -1,0 +1,88 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.header {
+  padding: 2.5rem 2rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.header p {
+  margin-top: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+/* ── Selector cards ──────────────────────────────────────── */
+.selector {
+  display: flex;
+  gap: 1rem;
+  max-width: 1200px;
+  width: 100%;
+  margin: 2rem auto 0;
+  padding: 0 2rem;
+}
+
+.selectorCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1.1rem 1.25rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+  overflow: hidden;
+}
+
+.selectorCard:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--card-accent) 60%, transparent);
+}
+
+.selectorCardActive {
+  border-color: var(--card-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--card-accent) 20%, transparent);
+}
+
+.selectorBar {
+  display: block;
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--card-accent);
+  margin-bottom: 0.45rem;
+}
+
+.selectorIndex {
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--color-muted);
+}
+
+.selectorTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.selectorSub {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
