@@ -6,6 +6,7 @@ const NotFoundPage = lazy(() => import('./ui/pages/NotFoundPage'))
 const BannerDemoPage = lazy(() => import('./ui/pages/BannerDemoPage'))
 const BannerPage = lazy(() => import('./ui/pages/BannerPage'))
 const StudioPage = lazy(() => import('./studio/ui/StudioPage'))
+const FarmPage = lazy(() => import('./ui/pages/FarmPage'))
 
 /** Map each metadata path to its lazy-loaded page element.
  *  Add a new entry here when you add a route to routesMeta.ts. */
@@ -13,6 +14,7 @@ const elementMap: Record<string, ReactNode> = {
   '/': <HomePage />,
   '/banner-demo': <BannerDemoPage />,
   '/studio': <StudioPage />,
+  '/farm': <FarmPage />,
   '*': <NotFoundPage />,
 }
 

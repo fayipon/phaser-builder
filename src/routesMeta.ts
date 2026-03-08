@@ -28,6 +28,12 @@ export const routesMeta: RouteMeta[] = [
     description: 'Visual banner editor with timeline, templates & AI generator',
     tech: 'PHASER',
   },
+  {
+    path: '/farm',
+    label: '開心農場',
+    description: '45° 等角視角農場，六格格子種植與收成',
+    tech: 'PHASER',
+  },
   // ──────────────────────────────────────────────────────────
 
   { path: '*', label: '404', hideNav: true },
