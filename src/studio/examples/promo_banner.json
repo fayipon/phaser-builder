@@ -1,0 +1,45 @@
+{
+  "size": { "width": 300, "height": 250 },
+  "assets": [],
+  "objects": [
+    {
+      "id": "headline",
+      "type": "text",
+      "x": 150,
+      "y": 60,
+      "text": "🎡 50 FREE SPINS!",
+      "style": { "fontSize": 20, "color": "#00E5FF", "fontStyle": "bold", "align": "center" },
+      "depth": 2
+    },
+    {
+      "id": "sub",
+      "type": "text",
+      "x": 150,
+      "y": 110,
+      "text": "Sweet Bonanza",
+      "style": { "fontSize": 16, "color": "#FFFFFF", "align": "center" },
+      "depth": 2
+    },
+    {
+      "id": "cta",
+      "type": "text",
+      "x": 150,
+      "y": 200,
+      "text": "CLAIM NOW →",
+      "style": { "fontSize": 16, "color": "#111", "fontStyle": "bold", "align": "center" },
+      "depth": 3
+    },
+    {
+      "id": "sparks",
+      "type": "particle",
+      "x": 150,
+      "y": 125,
+      "particlePreset": "sparkles",
+      "depth": 1
+    }
+  ],
+  "timeline": [
+    { "target": "headline", "type": "scale", "value": 1.05, "duration": 700, "ease": "Sine.easeInOut", "repeat": -1, "yoyo": true },
+    { "target": "cta", "type": "alpha", "value": 0.5, "duration": 600, "ease": "Sine.easeInOut", "repeat": -1, "yoyo": true }
+  ]
+}

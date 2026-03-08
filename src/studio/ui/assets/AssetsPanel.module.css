@@ -1,0 +1,82 @@
+.panel {
+  width: 210px;
+  background: #111122;
+  border-right: 1px solid #2a2a4a;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.heading {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #8888aa;
+  padding: 0.75rem 0.75rem 0.35rem;
+}
+.quickGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  padding: 0 0.6rem 0.6rem;
+}
+.quickBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.3rem;
+  background: #1a1a30;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  color: #e2e2f0;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.quickBtn:hover { background: #252545; }
+.quickIcon { font-size: 1.2rem; }
+.quickLabel { font-size: 0.62rem; color: #8888aa; }
+
+.layers {
+  list-style: none;
+  flex: 1;
+  padding: 0 0.5rem;
+  overflow-y: auto;
+}
+.layer {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-size: 0.78rem;
+}
+.layer:hover { background: #1e1e38; }
+.layerActive { background: rgba(124,106,247,0.18); }
+.layerType {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  color: #7c6af7;
+  background: rgba(124,106,247,0.12);
+  padding: 0.12rem 0.35rem;
+  border-radius: 3px;
+  letter-spacing: 0.06em;
+}
+.layerId {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #ccc;
+}
+.layerDel {
+  border: none;
+  background: none;
+  color: #ff6666;
+  font-size: 0.7rem;
+  cursor: pointer;
+  opacity: 0.5;
+}
+.layerDel:hover { opacity: 1; }

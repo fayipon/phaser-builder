@@ -1,0 +1,46 @@
+{
+  "size": { "width": 728, "height": 90 },
+  "assets": [],
+  "objects": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 200,
+      "y": 26,
+      "text": "🎰 Fortune Tiger",
+      "style": { "fontSize": 22, "color": "#FFD700", "fontStyle": "bold", "align": "center" },
+      "depth": 2
+    },
+    {
+      "id": "jackpot",
+      "type": "text",
+      "x": 200,
+      "y": 56,
+      "text": "💰 JACKPOT $88,888",
+      "style": { "fontSize": 16, "color": "#FFFFFF", "align": "center" },
+      "depth": 2
+    },
+    {
+      "id": "cta",
+      "type": "text",
+      "x": 580,
+      "y": 45,
+      "text": "PLAY NOW →",
+      "style": { "fontSize": 14, "color": "#0c0c1a", "fontStyle": "bold", "align": "center" },
+      "depth": 3
+    },
+    {
+      "id": "coins",
+      "type": "particle",
+      "x": 364,
+      "y": 0,
+      "particlePreset": "coin_rain",
+      "depth": 1
+    }
+  ],
+  "timeline": [
+    { "target": "title", "type": "scale", "value": 1.1, "duration": 600, "ease": "Sine.easeInOut", "repeat": -1, "yoyo": true },
+    { "target": "jackpot", "type": "alpha", "value": 0.6, "duration": 800, "ease": "Sine.easeInOut", "repeat": -1, "yoyo": true },
+    { "target": "cta", "type": "y", "value": 42, "duration": 500, "ease": "Bounce.easeOut", "repeat": -1, "yoyo": true }
+  ]
+}

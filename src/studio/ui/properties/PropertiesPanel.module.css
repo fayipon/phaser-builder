@@ -1,0 +1,65 @@
+.panel {
+  width: 230px;
+  background: #111122;
+  border-left: 1px solid #2a2a4a;
+  overflow-y: auto;
+  flex-shrink: 0;
+  padding-bottom: 1rem;
+}
+.heading {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #8888aa;
+  padding: 0.75rem 0.75rem 0.35rem;
+}
+.empty {
+  padding: 1.5rem 0.75rem;
+  color: #666;
+  font-size: 0.8rem;
+}
+.section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.75rem;
+}
+.label {
+  font-size: 0.72rem;
+  color: #8888aa;
+  width: 60px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.value {
+  font-size: 0.78rem;
+  color: #e2e2f0;
+  text-transform: capitalize;
+}
+.inputNum {
+  width: 72px;
+  background: #1a1a30;
+  color: #e2e2f0;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.78rem;
+}
+.input {
+  flex: 1;
+  background: #1a1a30;
+  color: #e2e2f0;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.78rem;
+}
+.inputColor {
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}

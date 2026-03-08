@@ -22,6 +22,12 @@ export const routesMeta: RouteMeta[] = [
     description: 'Three Phaser-rendered banners with slide & swipe support',
     tech: 'PHASER',
   },
+  {
+    path: '/studio',
+    label: 'Banner Studio',
+    description: 'Visual banner editor with timeline, templates & AI generator',
+    tech: 'PHASER',
+  },
   // ──────────────────────────────────────────────────────────
 
   { path: '*', label: '404', hideNav: true },

@@ -1,0 +1,55 @@
+{
+  "size": { "width": 1080, "height": 1080 },
+  "assets": [],
+  "objects": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 540,
+      "y": 300,
+      "text": "🏆 BIG WIN!",
+      "style": { "fontSize": 64, "color": "#FFD700", "fontStyle": "bold", "align": "center" },
+      "depth": 2
+    },
+    {
+      "id": "amount",
+      "type": "text",
+      "x": 540,
+      "y": 450,
+      "text": "$1,000,000",
+      "style": { "fontSize": 48, "color": "#FFFFFF", "fontStyle": "bold", "align": "center" },
+      "depth": 2
+    },
+    {
+      "id": "game",
+      "type": "text",
+      "x": 540,
+      "y": 560,
+      "text": "Gates of Olympus",
+      "style": { "fontSize": 28, "color": "#AAB3FF", "align": "center" },
+      "depth": 2
+    },
+    {
+      "id": "cta",
+      "type": "text",
+      "x": 540,
+      "y": 750,
+      "text": "PLAY NOW →",
+      "style": { "fontSize": 24, "color": "#0c0c1a", "fontStyle": "bold", "align": "center" },
+      "depth": 3
+    },
+    {
+      "id": "confetti",
+      "type": "particle",
+      "x": 540,
+      "y": 0,
+      "particlePreset": "confetti",
+      "depth": 1
+    }
+  ],
+  "timeline": [
+    { "target": "title", "type": "scale", "value": 1.15, "duration": 800, "ease": "Bounce.easeOut", "repeat": -1, "yoyo": true },
+    { "target": "amount", "type": "y", "value": 440, "duration": 600, "ease": "Sine.easeInOut", "repeat": -1, "yoyo": true },
+    { "target": "confetti", "type": "alpha", "value": 0.7, "duration": 1000, "ease": "Sine.easeInOut", "repeat": -1, "yoyo": true }
+  ]
+}
