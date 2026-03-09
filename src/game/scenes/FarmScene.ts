@@ -35,10 +35,10 @@ interface SeedDef {
 }
 
 const SEEDS: SeedDef[] = [
-  { id: 'sunflower', name: '向日葵', icon: '🌻', stages: ['🌱', '🌿', '🌻'], harvestYield: 2, coinValue: 10, growTime: 8 },
-  { id: 'carrot',    name: '紅蘿蔔', icon: '🥕', stages: ['🌱', '☘️', '🥕'], harvestYield: 3, coinValue: 8,  growTime: 6 },
-  { id: 'tulip',     name: '鬱金香', icon: '🌷', stages: ['🌱', '🌿', '🌷'], harvestYield: 2, coinValue: 15, growTime: 10 },
-  { id: 'strawberry',name: '草莓',   icon: '🍓', stages: ['🌱', '🍀', '🍓'], harvestYield: 2, coinValue: 12, growTime: 12 },
+  { id: 'sunflower', name: '向日葵', icon: '🌻', stages: ['plant_weed_01', 'plant_weed_02', 'plant_sunflower_01'], harvestYield: 2, coinValue: 10, growTime: 8 },
+  { id: 'tulip',     name: '鬱金香', icon: '🌷', stages: ['plant_weed_01', 'plant_flower_01', 'plant_tulips_03'],   harvestYield: 2, coinValue: 15, growTime: 10 },
+  { id: 'sakura',    name: '桜',     icon: '🌸', stages: ['plant_weed_01', 'plant_cherry-blossoms_03', 'plant_cherry-blossoms_01'], harvestYield: 2, coinValue: 20, growTime: 14 },
+  { id: 'hibiscus',  name: 'ハイビスカス', icon: '🌺', stages: ['plant_weed_01', 'plant_flower_pink_01', 'plant_hibiscus_01'], harvestYield: 2, coinValue: 18, growTime: 12 },
 ]
 
 const SEED_BY_ID = Object.fromEntries(SEEDS.map((s) => [s.id, s]))
@@ -73,6 +73,8 @@ interface Cell {
   harvestIcon: Phaser.GameObjects.Text
   /** Tween for bouncing harvest icon */
   harvestTween: Phaser.Tweens.Tween | null
+  /** Sprite rendered for the crop stage */
+  sprite: Phaser.GameObjects.Image
 }
 
 /* ================================================================== */
@@ -89,10 +91,20 @@ export class FarmScene extends Phaser.Scene {
   private inventory: Map<string, number> = new Map()
   /** Currently selected tool — a seed ID or TOOL_WATER */
   private selectedTool: string = SEEDS[0].id
+
+  /** All DOTOWN plant texture keys to preload */
+  private static readonly PLANT_KEYS = [
+    'plant_weed_01', 'plant_weed_02',
+    'plant_sunflower_01',
+    'plant_flower_01', 'plant_tulips_03',
+    'plant_cherry-blossoms_01', 'plant_cherry-blossoms_03',
+    'plant_flower_pink_01', 'plant_hibiscus_01',
+  ]
   private coins = 0
 
   /* HUD references */
   private coinText!: Phaser.GameObjects.Text
+  private coinIcon!: Phaser.GameObjects.Graphics
   private toolbarSlots: {
     toolId: string
     bg: Phaser.GameObjects.Rectangle
@@ -102,6 +114,16 @@ export class FarmScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'FarmScene' })
+  }
+
+  /* ================================================================ */
+  /*  PRELOAD                                                          */
+  /* ================================================================ */
+
+  preload() {
+    for (const key of FarmScene.PLANT_KEYS) {
+      this.load.image(key, `/assets/dotown/plant/${key}.png`)
+    }
   }
 
   /* ================================================================ */
@@ -135,9 +157,9 @@ export class FarmScene extends Phaser.Scene {
 
     // ── Initial inventory ────────────────────────────────────
     this.inventory.set('sunflower', 5)
-    this.inventory.set('carrot', 3)
     this.inventory.set('tulip', 4)
-    this.inventory.set('strawberry', 3)
+    this.inventory.set('sakura', 3)
+    this.inventory.set('hibiscus', 3)
 
     // ── Draw zones ───────────────────────────────────────────
     this.buildTopBar(W, topBarH)
@@ -162,10 +184,11 @@ export class FarmScene extends Phaser.Scene {
         cell.watered = false
         const def = SEED_BY_ID[cell.seedId!]
         if (def) {
-          cell.label.setText(def.stages[cell.stage])
+          this.setSpriteTexture(cell, def.stages[cell.stage])
+          cell.sprite.setAlpha(0)
           this.tweens.add({
-            targets: cell.label, scale: { from: 0.2, to: 1 },
-            duration: 300, ease: 'Back.easeOut',
+            targets: cell.sprite, alpha: { from: 0, to: 1 },
+            duration: 250, ease: 'Sine.easeOut',
           })
         }
         if (cell.stage < 2 && def) {
@@ -200,10 +223,14 @@ export class FarmScene extends Phaser.Scene {
       .setOrigin(0.5).setDepth(11)
 
     this.coinText = this.add
-      .text(W - 14, barH / 2, `🪙 ${this.coins}`, {
+      .text(W - 10, barH / 2, `${this.coins}`, {
         fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#ffd54f',
       })
       .setOrigin(1, 0.5).setDepth(11)
+
+    // Pixel coin icon — drawn left of the number text
+    this.coinIcon = this.add.graphics().setDepth(11)
+    this.refreshCoinIcon()
   }
 
   /* ================================================================ */
@@ -270,6 +297,49 @@ export class FarmScene extends Phaser.Scene {
     })
   }
 
+  /**
+   * Draw a small pixel-style gold coin to the left of coinText.
+   * Called once on build and again after coinText width changes.
+   */
+  private refreshCoinIcon(W: number, barH: number) {
+    const g = this.coinIcon
+    g.clear()
+    const r = 9
+    const tx = this.coinText.x - this.coinText.width - r * 2 - 4
+    const ty = barH / 2
+    // outer ring (dark gold)
+    g.fillStyle(0xc8860a, 1)
+    g.fillCircle(tx, ty, r)
+    // inner fill (bright gold)
+    g.fillStyle(0xffd54f, 1)
+    g.fillCircle(tx, ty, r - 2)
+    // shine dot
+    g.fillStyle(0xfff59d, 1)
+    g.fillCircle(tx - 2, ty - 2, 2)
+  }
+
+  /**
+   * Draw a small pixel-style gold coin to the left of coinText.
+   * Called once on build and again after coinText content changes.
+   */
+  private refreshCoinIcon() {
+    const g = this.coinIcon
+    g.clear()
+    const r = 9
+    // anchor the coin just left of the number text
+    const tx = this.coinText.x - this.coinText.width - r * 2 - 4
+    const ty = this.coinText.y
+    // outer ring (dark gold)
+    g.fillStyle(0xc8860a, 1)
+    g.fillCircle(tx, ty, r)
+    // inner fill (bright gold)
+    g.fillStyle(0xffd54f, 1)
+    g.fillCircle(tx, ty, r - 2)
+    // shine highlight
+    g.fillStyle(0xfff59d, 1)
+    g.fillCircle(tx - 2, ty - 2, 2)
+  }
+
   private refreshToolbar() {
     this.toolbarSlots.forEach((slot) => {
       const selected = slot.toolId === this.selectedTool
@@ -313,13 +383,16 @@ export class FarmScene extends Phaser.Scene {
       for (let c = 0; c < COLS; c++) {
         const { x, y } = this.toScreen(c, r)
 
+        /** isometric depth — later (higher col+row) tiles render on top */
+        const iso = c + r
+
         // side faces
         this.add.polygon(x, y,
           [tw / 2, 0, 0, th / 2, 0, th / 2 + depth, tw / 2, depth],
-          COLOR_SOIL_SIDE).setOrigin(0, 0)
+          COLOR_SOIL_SIDE).setOrigin(0, 0).setDepth(iso)
         this.add.polygon(x, y,
           [-tw / 2, 0, 0, th / 2, 0, th / 2 + depth, -tw / 2, depth],
-          COLOR_SOIL_DARK).setOrigin(0, 0)
+          COLOR_SOIL_DARK).setOrigin(0, 0).setDepth(iso)
 
         // top face
         const pts = this.diamondPoints()
@@ -329,46 +402,56 @@ export class FarmScene extends Phaser.Scene {
         const diamond = this.add
           .polygon(x, y, pts, fillColor)
           .setOrigin(0, 0)
+          .setDepth(iso + 0.1)
           .setInteractive(new Phaser.Geom.Polygon(pts), Phaser.Geom.Polygon.Contains)
 
-        const emojiSize = Math.max(20, Math.round(tw * 0.28))
         const label = this.add
-          .text(x, y, '', { fontSize: `${emojiSize}px` })
-          .setOrigin(0.5, 0.5)
+          .text(x, y, '', { fontSize: '1px' })
+          .setOrigin(0.5, 0.5).setVisible(false) // unused; kept for type compat
+
+        // Sprite — origin (0.5, 1) means Y = bottom of sprite.
+        // Tile center is (x, y); placing bottom there makes the sprite grow upward from the surface.
+        const spriteSize = Math.round(tw * 0.52)
+        const sprite = this.add
+          .image(x, y, 'plant_weed_01')
+          .setDisplaySize(spriteSize, spriteSize)
+          .setOrigin(0.5, 1)
+          .setDepth(iso + 0.2)
+          .setVisible(false)
 
         // Countdown text (hidden initially)
         const timerFontSize = Math.max(10, Math.round(tw * 0.14))
         const timerText = this.add
-          .text(x, y + th * 0.32, '', {
+          .text(x, y + th * 0.2, '', {
             fontFamily: 'Arial, sans-serif',
             fontSize: `${timerFontSize}px`,
             color: '#fff',
             stroke: '#000',
             strokeThickness: 2,
           })
-          .setOrigin(0.5, 0.5).setAlpha(0)
+          .setOrigin(0.5, 0.5).setAlpha(0).setDepth(iso + 0.3)
 
         // Water icon (hidden initially)
         const waterIconSize = Math.max(12, Math.round(tw * 0.16))
         const waterIcon = this.add
-          .text(x + tw * 0.25, y - th * 0.3, '💧', {
+          .text(x + tw * 0.28, y - th * 0.15, '💧', {
             fontSize: `${waterIconSize}px`,
           })
-          .setOrigin(0.5, 0.5).setAlpha(0)
+          .setOrigin(0.5, 0.5).setAlpha(0).setDepth(iso + 0.3)
 
-        // Harvest icon (hidden initially)
+        // Harvest icon — floats above the sprite top (bottom=y, top=y-spriteSize)
         const harvestIconSize = Math.max(14, Math.round(tw * 0.22))
         const harvestIcon = this.add
-          .text(x, y - th * 0.42, '👆', {
+          .text(x, y - spriteSize - th * 0.1, '👆', {
             fontSize: `${harvestIconSize}px`,
           })
-          .setOrigin(0.5, 0.5).setAlpha(0)
+          .setOrigin(0.5, 0.5).setAlpha(0).setDepth(iso + 0.4)
 
         const cell: Cell = {
           col: c, row: r, stage: -1, seedId: null,
           gfx: diamond, label, baseFill: fillColor,
           timer: 0, timerMax: 0, watered: false,
-          timerText, waterIcon, harvestIcon, harvestTween: null,
+          timerText, waterIcon, harvestIcon, harvestTween: null, sprite,
         }
         this.cells.push(cell)
 
@@ -379,6 +462,16 @@ export class FarmScene extends Phaser.Scene {
         diamond.on(Phaser.Input.Events.POINTER_DOWN, () => this.onCellClick(cell))
       }
     }
+  }
+
+  /**
+   * Set a sprite's texture AND restore the clamped display size.
+   * Must be called instead of raw .setTexture() — Phaser resets scale on
+   * every texture swap, so displaySize must be re-applied each time.
+   */
+  private setSpriteTexture(cell: Cell, key: string) {
+    const sz = Math.round(this.tileW * 0.52)
+    cell.sprite.setTexture(key).setDisplaySize(sz, sz).setVisible(true)
   }
 
   /** Returns the appropriate fill for a cell's current state */
@@ -494,7 +587,8 @@ export class FarmScene extends Phaser.Scene {
     cell.watered = false
 
     const def = SEED_BY_ID[seedId]
-    cell.label.setText(def ? def.stages[0] : '🌱')
+    this.setSpriteTexture(cell, def ? def.stages[0] : 'plant_weed_01')
+    cell.sprite.setAlpha(0)
     cell.gfx.setFillStyle(COLOR_SOIL)
 
     if (def) {
@@ -506,8 +600,8 @@ export class FarmScene extends Phaser.Scene {
     this.updateCellOverlay(cell)
 
     this.tweens.add({
-      targets: cell.label, scale: { from: 0.2, to: 1 },
-      duration: 300, ease: 'Back.easeOut',
+      targets: cell.sprite, alpha: { from: 0, to: 1 },
+      duration: 250, ease: 'Sine.easeOut',
     })
   }
 
@@ -518,11 +612,12 @@ export class FarmScene extends Phaser.Scene {
     this.inventory.set(def.id, (this.inventory.get(def.id) ?? 0) + def.harvestYield)
     this.coins += def.coinValue
     this.refreshToolbar()
-    this.coinText.setText(`🪙 ${this.coins}`)
+    this.coinText.setText(`${this.coins}`)
+    this.refreshCoinIcon()
 
     const { x, y } = this.toScreen(cell.col, cell.row)
     const fb = this.add
-      .text(x, y - 16, `+${def.coinValue}🪙  +${def.harvestYield}${def.icon}`, {
+      .text(x, y - 16, `+${def.coinValue} G  ×${def.harvestYield} ${def.name}`, {
         fontSize: '16px', color: '#fff', fontFamily: 'Arial, sans-serif',
       })
       .setOrigin(0.5, 1)
@@ -531,7 +626,7 @@ export class FarmScene extends Phaser.Scene {
       ease: 'Cubic.easeOut', onComplete: () => fb.destroy(),
     })
     this.tweens.add({
-      targets: this.coinText, scale: { from: 1.3, to: 1 },
+      targets: [this.coinText, this.coinIcon], scale: { from: 1.3, to: 1 },
       duration: 250, ease: 'Back.easeOut',
     })
 
@@ -540,10 +635,9 @@ export class FarmScene extends Phaser.Scene {
     cell.timer = 0
     cell.timerMax = 0
     cell.watered = false
-    cell.label.setText('')
+    cell.sprite.setVisible(false)
     cell.gfx.setFillStyle(cell.baseFill)
     this.stopHarvestTween(cell)
     this.updateCellOverlay(cell)
-    this.tweens.add({ targets: cell.label, scale: { from: 1.4, to: 1 }, duration: 200 })
   }
 }

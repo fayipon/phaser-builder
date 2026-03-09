@@ -19,6 +19,11 @@ export default function FarmPage() {
         width: '100%',
         height: '100%',
       },
+      render: {
+        antialias: false,
+        pixelArt: true,
+        roundPixels: true,
+      },
       scene: [FarmScene],
     })
 
