@@ -1,44 +1,30 @@
+/* ── Mobile-first: canvas fills entire available area ─────── */
 .page {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #1a2a1a 0%, #0d1f0d 100%);
-  padding: 2rem 1rem;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.title {
-  font-size: 2rem;
-  color: #a5d6a7;
-  margin: 0;
-}
-
-.sub {
-  color: #81c784;
-  margin: 0.25rem 0 0;
-  font-size: 0.95rem;
-}
-
-.back {
-  display: inline-block;
-  margin-bottom: 1rem;
-  color: #66bb6a;
-  text-decoration: none;
-  font-size: 0.9rem;
-}
-.back:hover {
-  text-decoration: underline;
+  width: 100%;
+  height: calc(100dvh - 60px); /* 60px = NavBar height */
+  background: #1a2a1a;
+  overflow: hidden;
 }
 
 .canvas {
-  width: min(900px, 100%);
-  aspect-ratio: 16 / 10;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* ── Desktop: constrain to a nice card ─────────────────── */
+@media (min-width: 600px) {
+  .page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a2a1a 0%, #0d1f0d 100%);
+  }
+  .canvas {
+    max-width: 480px;
+    max-height: 85vh;
+    aspect-ratio: 9 / 16;
+    border-radius: 10px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  }
 }
