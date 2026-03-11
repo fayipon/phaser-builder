@@ -2,7 +2,7 @@
 .page {
   width: 100%;
   height: calc(100dvh - 60px); /* 60px = NavBar height */
-  background: #1a2a1a;
+  background: #000;
   overflow: hidden;
 }
 

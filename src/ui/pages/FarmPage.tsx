@@ -11,8 +11,8 @@ export default function FarmPage() {
   useEffect(() => {
     const game = new Phaser.Game({
       parent: CANVAS_ID,
-      type: Phaser.AUTO,
-      backgroundColor: '#1a2a1a',
+      type: Phaser.WEBGL,
+      backgroundColor: '#000000',
       scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -23,6 +23,10 @@ export default function FarmPage() {
         antialias: false,
         pixelArt: true,
         roundPixels: true,
+      },
+      fps: {
+        target: 30,
+        forceSetTimeOut: true,
       },
       scene: [FarmScene],
     })

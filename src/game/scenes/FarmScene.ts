@@ -7,8 +7,8 @@ import Phaser from 'phaser'
 const BASE_TILE_W = 128
 const BASE_TILE_H = 64
 
-const COLS = 3
-const ROWS = 4
+const COLS = 4
+const ROWS = 3
 
 /** Colours */
 const COLOR_SOIL = 0x8b6914
@@ -34,11 +34,15 @@ interface SeedDef {
   growTime: number
 }
 
+/**
+ * ddd.png + ddd.json — atlas with per-row frame definitions.
+ * Frame names: r{row}c{col}  (col 1-3 = growth stages 0→2)
+ */
 const SEEDS: SeedDef[] = [
-  { id: 'sunflower', name: '向日葵', icon: '🌻', stages: ['plant_weed_01', 'plant_weed_02', 'plant_sunflower_01'], harvestYield: 2, coinValue: 10, growTime: 8 },
-  { id: 'tulip',     name: '鬱金香', icon: '🌷', stages: ['plant_weed_01', 'plant_flower_01', 'plant_tulips_03'],   harvestYield: 2, coinValue: 15, growTime: 10 },
-  { id: 'sakura',    name: '桜',     icon: '🌸', stages: ['plant_weed_01', 'plant_cherry-blossoms_03', 'plant_cherry-blossoms_01'], harvestYield: 2, coinValue: 20, growTime: 14 },
-  { id: 'hibiscus',  name: 'ハイビスカス', icon: '🌺', stages: ['plant_weed_01', 'plant_flower_pink_01', 'plant_hibiscus_01'], harvestYield: 2, coinValue: 18, growTime: 12 },
+  { id: 'sunflower', name: '向日葵',       icon: '🌻', stages: ['farm-tiles:r0c1', 'farm-tiles:r0c2', 'farm-tiles:r0c3'], harvestYield: 2, coinValue: 10, growTime: 8 },
+  { id: 'tulip',     name: '鬱金香',       icon: '🌷', stages: ['farm-tiles:r1c1', 'farm-tiles:r1c2', 'farm-tiles:r1c3'], harvestYield: 2, coinValue: 15, growTime: 10 },
+  { id: 'sakura',    name: '桜',           icon: '🌸', stages: ['farm-tiles:r2c1', 'farm-tiles:r2c2', 'farm-tiles:r2c3'], harvestYield: 2, coinValue: 20, growTime: 14 },
+  { id: 'hibiscus',  name: 'ハイビスカス', icon: '🌺', stages: ['farm-tiles:r3c1', 'farm-tiles:r3c2', 'farm-tiles:r3c3'], harvestYield: 2, coinValue: 18, growTime: 12 },
 ]
 
 const SEED_BY_ID = Object.fromEntries(SEEDS.map((s) => [s.id, s]))
@@ -75,6 +79,8 @@ interface Cell {
   harvestTween: Phaser.Tweens.Tween | null
   /** Sprite rendered for the crop stage */
   sprite: Phaser.GameObjects.Image
+  /** 8 white-tinted offset copies for sticker outline */
+  outlineSprites: Phaser.GameObjects.Image[]
 }
 
 /* ================================================================== */
@@ -92,25 +98,45 @@ export class FarmScene extends Phaser.Scene {
   /** Currently selected tool — a seed ID or TOOL_WATER */
   private selectedTool: string = SEEDS[0].id
 
-  /** All DOTOWN plant texture keys to preload */
-  private static readonly PLANT_KEYS = [
-    'plant_weed_01', 'plant_weed_02',
-    'plant_sunflower_01',
-    'plant_flower_01', 'plant_tulips_03',
-    'plant_cherry-blossoms_01', 'plant_cherry-blossoms_03',
-    'plant_flower_pink_01', 'plant_hibiscus_01',
-  ]
+  /** Legacy DOTOWN plant texture keys (kept for fallback) */
+  private static readonly PLANT_KEYS: string[] = []
   private coins = 0
 
   /* HUD references */
   private coinText!: Phaser.GameObjects.Text
   private coinIcon!: Phaser.GameObjects.Graphics
+
+  /* Tutorial system */
+  private tutActive = false
+  private tutIndex = 0
+  private tutBuilt = false
+  private readonly tutDialogues = [
+    { name: 'GURA', text: 'Hey! Welcome to\nHAPPY FARM!' },
+    { name: 'GURA', text: 'Pick a seed from the\ntoolbar, then tap a\ntile to plant it!' },
+    { name: 'GURA', text: 'Use the WATER tool\nto speed up growth!' },
+    { name: 'GURA', text: 'When a crop is ready,\ntap it with the hand\ncursor to harvest!' },
+    { name: 'GURA', text: 'Earn coins and keep\ngrowing! Good luck!' },
+  ]
+  private tutTypeTimer: Phaser.Time.TimerEvent | null = null
+  private tutHintTween: Phaser.Tweens.Tween | null = null
+  private tutOverlayDim!: Phaser.GameObjects.Rectangle
+  private tutBox!: Phaser.GameObjects.Rectangle
+  private tutBoxBorder!: Phaser.GameObjects.Rectangle
+  private tutCharImg!: Phaser.GameObjects.Image
+  private tutNameBg!: Phaser.GameObjects.Rectangle
+  private tutNameText!: Phaser.GameObjects.Text
+  private tutBodyText!: Phaser.GameObjects.Text
+  private tutHintText!: Phaser.GameObjects.Text
+
   private toolbarSlots: {
     toolId: string
-    bg: Phaser.GameObjects.Rectangle
+    bg: Phaser.GameObjects.Arc
     icon: Phaser.GameObjects.Text
     count: Phaser.GameObjects.Text
   }[] = []
+
+  /** Floating clouds */
+  private clouds: { img: Phaser.GameObjects.Ellipse; speed: number }[] = []
 
   constructor() {
     super({ key: 'FarmScene' })
@@ -121,6 +147,10 @@ export class FarmScene extends Phaser.Scene {
   /* ================================================================ */
 
   preload() {
+    this.load.image('farm-bg', '/assets/farm-bg.png')
+    this.load.image('farm-guide', '/assets/farm-guide.png')
+    // Plant atlas with precise per-row frame sizes
+    this.load.atlas('farm-tiles', '/assets/dotown/plant2/ddd.png', '/assets/dotown/plant2/ddd.json')
     for (const key of FarmScene.PLANT_KEYS) {
       this.load.image(key, `/assets/dotown/plant/${key}.png`)
     }
@@ -134,9 +164,14 @@ export class FarmScene extends Phaser.Scene {
     const W = this.scale.width
     const H = this.scale.height
 
-    // ── Layout zones ─────────────────────────────────────────
+    // ── Background image (covers full canvas, behind everything) ──
+    this.add.image(W / 2, H / 2, 'farm-bg')
+      .setDisplaySize(W, H)
+      .setDepth(-1)
+
+    // ── Layout zones ────────────────────────────────────
     const topBarH = 48
-    const toolbarH = 72
+    const toolbarH = 84
     const fieldH = H - topBarH - toolbarH
 
     // ── Tile sizing: fill the field zone ─────────────────────
@@ -153,7 +188,7 @@ export class FarmScene extends Phaser.Scene {
     const actualGridH = (COLS + ROWS) * (this.tileH / 2) + actualDepth
 
     this.originX = W / 2 - (COLS - ROWS) * this.tileW / 4
-    this.originY = topBarH + (fieldH - actualGridH) / 2 + this.tileH / 2
+    this.originY = topBarH + (fieldH - actualGridH) / 2 + this.tileH / 2 + fieldH * 0.12
 
     // ── Initial inventory ────────────────────────────────────
     this.inventory.set('sunflower', 5)
@@ -165,6 +200,12 @@ export class FarmScene extends Phaser.Scene {
     this.buildTopBar(W, topBarH)
     this.buildGrid()
     this.buildToolbar(W, H, toolbarH)
+
+    // ── Floating clouds ─────────────────────────────────────
+    this.buildClouds(W, H)
+
+    // ── Tutorial: trigger 2 s after entering ─────────────────
+    this.time.delayedCall(2000, () => this.showTutorial(), [], this)
   }
 
   /* ================================================================ */
@@ -173,6 +214,20 @@ export class FarmScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     const dt = delta / 1000
+
+    // ── Move clouds ──
+    const W = this.scale.width
+    for (const c of this.clouds) {
+      c.img.x += c.speed * dt
+      if (c.speed > 0 && c.img.x - c.img.width / 2 > W) {
+        c.img.x = -c.img.width / 2
+        c.img.y = Phaser.Math.Between(20, Math.round(this.scale.height * 0.25))
+      } else if (c.speed < 0 && c.img.x + c.img.width / 2 < 0) {
+        c.img.x = W + c.img.width / 2
+        c.img.y = Phaser.Math.Between(20, Math.round(this.scale.height * 0.25))
+      }
+    }
+
     for (const cell of this.cells) {
       if (cell.stage < 0 || cell.stage >= 2) continue
       if (cell.timer <= 0) continue
@@ -186,8 +241,9 @@ export class FarmScene extends Phaser.Scene {
         if (def) {
           this.setSpriteTexture(cell, def.stages[cell.stage])
           cell.sprite.setAlpha(0)
+          cell.outlineSprites.forEach(s => s.setAlpha(0))
           this.tweens.add({
-            targets: cell.sprite, alpha: { from: 0, to: 1 },
+            targets: [cell.sprite, ...cell.outlineSprites], alpha: { from: 0, to: 1 },
             duration: 250, ease: 'Sine.easeOut',
           })
         }
@@ -203,6 +259,30 @@ export class FarmScene extends Phaser.Scene {
   }
 
   /* ================================================================ */
+  /*  CLOUDS                                                           */
+  /* ================================================================ */
+
+  private buildClouds(W: number, H: number) {
+    const count = Phaser.Math.Between(4, 6)
+    const maxY = Math.round(H * 0.28)
+
+    for (let i = 0; i < count; i++) {
+      const cw = Phaser.Math.Between(60, 140)
+      const ch = Phaser.Math.Between(24, 48)
+      const x = Phaser.Math.Between(-cw, W + cw)
+      const y = Phaser.Math.Between(15, maxY)
+      const alpha = Phaser.Math.FloatBetween(0.25, 0.55)
+      const speed = Phaser.Math.FloatBetween(6, 18) * (Math.random() < 0.5 ? 1 : -1)
+
+      // Build a cloud from overlapping ellipses grouped in a container
+      const e = this.add.ellipse(x, y, cw, ch, 0xffffff, alpha)
+        .setDepth(-0.5)
+
+      this.clouds.push({ img: e, speed })
+    }
+  }
+
+  /* ================================================================ */
   /*  TOP BAR                                                          */
   /* ================================================================ */
 
@@ -210,21 +290,21 @@ export class FarmScene extends Phaser.Scene {
     this.add.rectangle(W / 2, barH / 2, W, barH, 0x1a2a1a, 0.95).setDepth(10)
 
     const back = this.add
-      .text(14, barH / 2, '← 返回', {
-        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#66bb6a',
+      .text(14, barH / 2, '< Back', {
+        fontFamily: '"Press Start 2P"', fontSize: '9px', color: '#66bb6a',
       })
       .setOrigin(0, 0.5).setDepth(11).setInteractive({ useHandCursor: true })
     back.on(Phaser.Input.Events.POINTER_DOWN, () => window.history.back())
 
     this.add
-      .text(W / 2, barH / 2, '🌾 開心農場', {
-        fontFamily: 'Arial, sans-serif', fontSize: '20px', color: '#fff', fontStyle: 'bold',
+      .text(W / 2, barH / 2, 'HAPPY FARM', {
+        fontFamily: '"Press Start 2P"', fontSize: '12px', color: '#fff',
       })
       .setOrigin(0.5).setDepth(11)
 
     this.coinText = this.add
       .text(W - 10, barH / 2, `${this.coins}`, {
-        fontFamily: 'Arial, sans-serif', fontSize: '18px', color: '#ffd54f',
+        fontFamily: '"Press Start 2P"', fontSize: '11px', color: '#ffd54f',
       })
       .setOrigin(1, 0.5).setDepth(11)
 
@@ -239,8 +319,6 @@ export class FarmScene extends Phaser.Scene {
 
   private buildToolbar(W: number, H: number, barH: number) {
     const y0 = H - barH
-    this.add.rectangle(W / 2, y0 + barH / 2, W, barH, 0x1a2a1a, 0.95).setDepth(10)
-    this.add.rectangle(W / 2, y0, W, 2, 0x4caf50, 0.5).setDepth(10)
 
     const tools: { id: string; icon: string; showCount: boolean }[] = [
       ...SEEDS.map((s) => ({ id: s.id, icon: s.icon, showCount: true })),
@@ -248,52 +326,57 @@ export class FarmScene extends Phaser.Scene {
     ]
 
     const slotCount = tools.length
-    const gap = 8
-    const totalGap = gap * (slotCount + 1)
-    const slotW = Math.min(72, (W - totalGap) / slotCount)
-    const slotH = barH - 16
-    const startX = (W - (slotCount * slotW + (slotCount - 1) * gap)) / 2
+    const btnR = Math.min(26, Math.floor((barH - 30) / 2))
+    const gap = 18
+    const totalW = slotCount * btnR * 2 + (slotCount - 1) * gap
+    const startX = (W - totalW) / 2 + btnR
+    const cy = y0 + btnR + 4
 
     this.toolbarSlots = []
 
     tools.forEach((tool, i) => {
-      const cx = startX + slotW / 2 + i * (slotW + gap)
-      const cy = y0 + barH / 2
+      const cx = startX + i * (btnR * 2 + gap)
       const selected = tool.id === this.selectedTool
 
-      const bg = this.add
-        .rectangle(cx, cy, slotW, slotH, selected ? 0x4caf50 : 0x3a3a3a, selected ? 0.25 : 0.7)
-        .setOrigin(0.5)
-        .setStrokeStyle(2, selected ? 0x4caf50 : 0x555555)
-        .setInteractive().setDepth(11)
+      const circle = this.add
+        .arc(cx, cy, btnR, 0, 360, false, selected ? 0x2d5a27 : 0x1a2a1a, 0.92)
+        .setStrokeStyle(selected ? 3 : 1.5, selected ? 0x66bb6a : 0x444444)
+        .setDepth(11)
 
-      const iconSize = Math.max(22, Math.round(slotH * 0.48))
+      const iconSize = Math.max(16, Math.round(btnR * 0.88))
       const icon = this.add
-        .text(cx, cy - 6, tool.icon, { fontSize: `${iconSize}px` })
-        .setOrigin(0.5).setDepth(11)
+        .text(cx, cy, tool.icon, { fontSize: `${iconSize}px` })
+        .setOrigin(0.5).setDepth(12)
 
       let countTxt: Phaser.GameObjects.Text
       if (tool.showCount) {
         const count = this.inventory.get(tool.id) ?? 0
         countTxt = this.add
-          .text(cx, cy + slotH / 2 - 6, `×${count}`, {
-            fontFamily: 'Arial, sans-serif', fontSize: '13px', color: '#ccc',
+          .text(cx, cy + btnR + 5, `x${count}`, {
+            fontFamily: '"Press Start 2P"', fontSize: '7px', color: '#b0bec5',
           })
-          .setOrigin(0.5, 1).setDepth(11)
+          .setOrigin(0.5, 0).setDepth(12)
       } else {
         countTxt = this.add
-          .text(cx, cy + slotH / 2 - 6, '澆水', {
-            fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#81d4fa',
+          .text(cx, cy + btnR + 5, 'WATER', {
+            fontFamily: '"Press Start 2P"', fontSize: '6px', color: '#81d4fa',
           })
-          .setOrigin(0.5, 1).setDepth(11)
+          .setOrigin(0.5, 0).setDepth(12)
       }
 
-      bg.on(Phaser.Input.Events.POINTER_DOWN, () => {
+      // Invisible hit zone — larger than the visual circle for easier tapping
+      const hitR = btnR + 12
+      const hitZone = this.add
+        .zone(cx, cy, hitR * 2, hitR * 2)
+        .setInteractive(new Phaser.Geom.Circle(hitR, hitR, hitR), Phaser.Geom.Circle.Contains)
+        .setDepth(13)
+
+      hitZone.on(Phaser.Input.Events.POINTER_DOWN, () => {
         this.selectedTool = tool.id
         this.refreshToolbar()
       })
 
-      this.toolbarSlots.push({ toolId: tool.id, bg, icon, count: countTxt })
+      this.toolbarSlots.push({ toolId: tool.id, bg: circle, icon, count: countTxt })
     })
   }
 
@@ -343,11 +426,11 @@ export class FarmScene extends Phaser.Scene {
   private refreshToolbar() {
     this.toolbarSlots.forEach((slot) => {
       const selected = slot.toolId === this.selectedTool
-      slot.bg.setStrokeStyle(2, selected ? 0x4caf50 : 0x555555)
-      slot.bg.setFillStyle(selected ? 0x4caf50 : 0x3a3a3a, selected ? 0.25 : 0.7)
+      slot.bg.setStrokeStyle(selected ? 3 : 1.5, selected ? 0x66bb6a : 0x444444)
+      slot.bg.setFillStyle(selected ? 0x2d5a27 : 0x1a2a1a, 0.92)
       if (slot.toolId !== TOOL_WATER) {
         const count = this.inventory.get(slot.toolId) ?? 0
-        slot.count.setText(`×${count}`)
+        slot.count.setText(`x${count}`)
       }
     })
   }
@@ -409,25 +492,27 @@ export class FarmScene extends Phaser.Scene {
           .text(x, y, '', { fontSize: '1px' })
           .setOrigin(0.5, 0.5).setVisible(false) // unused; kept for type compat
 
-        // Sprite — origin (0.5, 1) means Y = bottom of sprite.
-        // Tile center is (x, y); placing bottom there makes the sprite grow upward from the surface.
-        const spriteSize = Math.round(tw * 0.52)
+        // Sprite — origin (0.5, 0.7) aligns the soil/ground center of each
+        // spritesheet frame with the isometric tile center.
+        const spriteW = Math.round(tw * 0.8)
+        const spriteH = Math.round(spriteW * 1.1)
         const sprite = this.add
-          .image(x, y, 'plant_weed_01')
-          .setDisplaySize(spriteSize, spriteSize)
-          .setOrigin(0.5, 1)
+          .image(x, y, 'farm-tiles', 'r0c1')
+          .setDisplaySize(spriteW, spriteH)
+          .setOrigin(0.5, 0.7)
           .setDepth(iso + 0.2)
           .setVisible(false)
+        const outlineSprites: Phaser.GameObjects.Image[] = []
 
         // Countdown text (hidden initially)
-        const timerFontSize = Math.max(10, Math.round(tw * 0.14))
+        const timerFontSize = Math.max(7, Math.round(tw * 0.10))
         const timerText = this.add
           .text(x, y + th * 0.2, '', {
-            fontFamily: 'Arial, sans-serif',
+            fontFamily: '"Press Start 2P"',
             fontSize: `${timerFontSize}px`,
             color: '#fff',
             stroke: '#000',
-            strokeThickness: 2,
+            strokeThickness: 3,
           })
           .setOrigin(0.5, 0.5).setAlpha(0).setDepth(iso + 0.3)
 
@@ -439,10 +524,10 @@ export class FarmScene extends Phaser.Scene {
           })
           .setOrigin(0.5, 0.5).setAlpha(0).setDepth(iso + 0.3)
 
-        // Harvest icon — floats above the sprite top (bottom=y, top=y-spriteSize)
+        // Harvest icon — floats above the sprite
         const harvestIconSize = Math.max(14, Math.round(tw * 0.22))
         const harvestIcon = this.add
-          .text(x, y - spriteSize - th * 0.1, '👆', {
+          .text(x, y - spriteH * 0.5 - th * 0.1, '👆', {
             fontSize: `${harvestIconSize}px`,
           })
           .setOrigin(0.5, 0.5).setAlpha(0).setDepth(iso + 0.4)
@@ -451,7 +536,7 @@ export class FarmScene extends Phaser.Scene {
           col: c, row: r, stage: -1, seedId: null,
           gfx: diamond, label, baseFill: fillColor,
           timer: 0, timerMax: 0, watered: false,
-          timerText, waterIcon, harvestIcon, harvestTween: null, sprite,
+          timerText, waterIcon, harvestIcon, harvestTween: null, sprite, outlineSprites,
         }
         this.cells.push(cell)
 
@@ -470,8 +555,23 @@ export class FarmScene extends Phaser.Scene {
    * every texture swap, so displaySize must be re-applied each time.
    */
   private setSpriteTexture(cell: Cell, key: string) {
-    const sz = Math.round(this.tileW * 0.52)
-    cell.sprite.setTexture(key).setDisplaySize(sz, sz).setVisible(true)
+    const szW = Math.round(this.tileW * 0.8)
+    const szH = Math.round(szW * 1.1)
+    // Support 'textureKey:frameIndex' notation for spritesheets
+    const colonIdx = key.lastIndexOf(':')
+    if (colonIdx !== -1) {
+      const texKey = key.slice(0, colonIdx)
+      const frameName = key.slice(colonIdx + 1)
+      cell.sprite.setTexture(texKey, frameName).setDisplaySize(szW, szH).setVisible(true)
+      for (const s of cell.outlineSprites) {
+        s.setTexture(texKey, frameName).setDisplaySize(szW, szH).setVisible(true)
+      }
+    } else {
+      cell.sprite.setTexture(key).setDisplaySize(szW, szH).setVisible(true)
+      for (const s of cell.outlineSprites) {
+        s.setTexture(key).setDisplaySize(szW, szH).setVisible(true)
+      }
+    }
   }
 
   /** Returns the appropriate fill for a cell's current state */
@@ -587,8 +687,9 @@ export class FarmScene extends Phaser.Scene {
     cell.watered = false
 
     const def = SEED_BY_ID[seedId]
-    this.setSpriteTexture(cell, def ? def.stages[0] : 'plant_weed_01')
+    this.setSpriteTexture(cell, def ? def.stages[0] : 'farm-tiles:r0c1')
     cell.sprite.setAlpha(0)
+    cell.outlineSprites.forEach(s => s.setAlpha(0))
     cell.gfx.setFillStyle(COLOR_SOIL)
 
     if (def) {
@@ -600,7 +701,7 @@ export class FarmScene extends Phaser.Scene {
     this.updateCellOverlay(cell)
 
     this.tweens.add({
-      targets: cell.sprite, alpha: { from: 0, to: 1 },
+      targets: [cell.sprite, ...cell.outlineSprites], alpha: { from: 0, to: 1 },
       duration: 250, ease: 'Sine.easeOut',
     })
   }
@@ -617,8 +718,9 @@ export class FarmScene extends Phaser.Scene {
 
     const { x, y } = this.toScreen(cell.col, cell.row)
     const fb = this.add
-      .text(x, y - 16, `+${def.coinValue} G  ×${def.harvestYield} ${def.name}`, {
-        fontSize: '16px', color: '#fff', fontFamily: 'Arial, sans-serif',
+      .text(x, y - 16, `+${def.coinValue}G  x${def.harvestYield} ${def.id.toUpperCase()}`, {
+        fontSize: '9px', color: '#fff', fontFamily: '"Press Start 2P"',
+        stroke: '#000', strokeThickness: 3,
       })
       .setOrigin(0.5, 1)
     this.tweens.add({
@@ -636,8 +738,209 @@ export class FarmScene extends Phaser.Scene {
     cell.timerMax = 0
     cell.watered = false
     cell.sprite.setVisible(false)
+    cell.outlineSprites.forEach(s => s.setVisible(false))
     cell.gfx.setFillStyle(cell.baseFill)
     this.stopHarvestTween(cell)
     this.updateCellOverlay(cell)
+  }
+
+  /* ================================================================ */
+  /*  TUTORIAL                                                         */
+  /* ================================================================ */
+
+  private buildTutorial() {
+    if (this.tutBuilt) return
+    this.tutBuilt = true
+
+    const W = this.scale.width
+    const H = this.scale.height
+    const boxH = 138
+    const charH = 230
+    const charW = Math.round(charH * 0.78)
+
+    // Dark dim overlay — whole canvas
+    this.tutOverlayDim = this.add
+      .rectangle(W / 2, H / 2, W, H, 0x000000, 0.45)
+      .setDepth(50)
+      .setVisible(false)
+
+    // Dialogue box background
+    this.tutBox = this.add
+      .rectangle(W / 2, H - boxH / 2, W, boxH, 0x0a1a0a, 0.93)
+      .setDepth(51)
+      .setVisible(false)
+
+    // Top border line on the box
+    this.tutBoxBorder = this.add
+      .rectangle(W / 2, H - boxH, W, 2, 0x4caf50)
+      .setDepth(52)
+      .setVisible(false)
+
+    // Character portrait — slides up from below
+    const charX = charW / 2 + 8
+    this.tutCharImg = this.add
+      .image(charX, H + charH, 'farm-guide')
+      .setDisplaySize(charW, charH)
+      .setOrigin(0.5, 1)
+      .setDepth(52)
+      .setVisible(false)
+
+    // Name plate — positioned at top-left of the dialogue box
+    const nameX = charW + 20
+    const namePlateW = 118
+    const namePlateH = 22
+    const namePlateY = H - boxH + namePlateH / 2
+    this.tutNameBg = this.add
+      .rectangle(nameX + namePlateW / 2, namePlateY, namePlateW, namePlateH, 0x2e7d32)
+      .setDepth(53)
+      .setVisible(false)
+
+    this.tutNameText = this.add
+      .text(nameX + namePlateW / 2, namePlateY, 'GURA', {
+        fontFamily: '"Press Start 2P"', fontSize: '8px', color: '#ffffff',
+      })
+      .setOrigin(0.5)
+      .setDepth(53)
+      .setVisible(false)
+
+    // Body text
+    this.tutBodyText = this.add
+      .text(nameX, H - boxH + namePlateH + 10, '', {
+        fontFamily: '"Press Start 2P"', fontSize: '8px', color: '#e8f5e9',
+        lineSpacing: 10,
+        wordWrap: { width: W - nameX - 18 },
+      })
+      .setOrigin(0, 0)
+      .setDepth(53)
+      .setVisible(false)
+
+    // Tap-to-continue hint
+    this.tutHintText = this.add
+      .text(W - 12, H - 8, '[ TAP TO CONTINUE ]', {
+        fontFamily: '"Press Start 2P"', fontSize: '7px', color: '#81c784',
+      })
+      .setOrigin(1, 1)
+      .setDepth(53)
+      .setVisible(false)
+  }
+
+  private showTutorial() {
+    this.buildTutorial()
+    this.tutActive = true
+    this.tutIndex = 0
+
+    // Show all elements
+    this.tutOverlayDim.setVisible(true).setAlpha(0)
+    this.tutBox.setVisible(true).setAlpha(0)
+    this.tutBoxBorder.setVisible(true).setAlpha(0)
+    this.tutNameBg.setVisible(true).setAlpha(0)
+    this.tutNameText.setVisible(true).setAlpha(0)
+    this.tutBodyText.setVisible(true).setAlpha(0)
+    this.tutHintText.setVisible(true).setAlpha(0)
+
+    // Fade in UI elements
+    this.tweens.add({
+      targets: [
+        this.tutOverlayDim, this.tutBox, this.tutBoxBorder,
+        this.tutNameBg, this.tutNameText, this.tutBodyText, this.tutHintText,
+      ],
+      alpha: 1,
+      duration: 350,
+      ease: 'Sine.easeOut',
+    })
+
+    // Slide character up from below
+    const H = this.scale.height
+    this.tutCharImg.setVisible(true).setAlpha(0).setY(H + 50)
+    this.tweens.add({
+      targets: this.tutCharImg,
+      y: H,
+      alpha: 1,
+      duration: 450,
+      ease: 'Back.easeOut',
+      delay: 100,
+    })
+
+    // Blinking hint
+    this.tutHintTween = this.tweens.add({
+      targets: this.tutHintText,
+      alpha: { from: 0.25, to: 1 },
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+
+    this.showTutDialogue(0)
+
+    // Register input handler
+    this.input.on('pointerdown', this.onTutClick, this)
+  }
+
+  private readonly onTutClick = () => {
+    if (!this.tutActive) return
+
+    // If typewriter is still running, skip to full text
+    if (this.tutTypeTimer && !this.tutTypeTimer.hasDispatched) {
+      this.tutTypeTimer.remove(false)
+      this.tutTypeTimer = null
+      this.tutBodyText.setText(this.tutDialogues[this.tutIndex].text)
+      return
+    }
+
+    this.tutIndex++
+    if (this.tutIndex >= this.tutDialogues.length) {
+      this.closeTutorial()
+    } else {
+      this.showTutDialogue(this.tutIndex)
+    }
+  }
+
+  private showTutDialogue(index: number) {
+    const d = this.tutDialogues[index]
+    this.tutNameText.setText(d.name)
+    this.tutBodyText.setText('')
+
+    if (this.tutTypeTimer) {
+      this.tutTypeTimer.remove(false)
+      this.tutTypeTimer = null
+    }
+
+    const fullText = d.text
+    let charIdx = 0
+    this.tutTypeTimer = this.time.addEvent({
+      delay: 42,
+      repeat: fullText.length - 1,
+      callback: () => {
+        charIdx++
+        this.tutBodyText.setText(fullText.substring(0, charIdx))
+      },
+    })
+  }
+
+  private closeTutorial() {
+    this.tutActive = false
+    this.input.off('pointerdown', this.onTutClick, this)
+
+    if (this.tutTypeTimer) {
+      this.tutTypeTimer.remove(false)
+      this.tutTypeTimer = null
+    }
+    if (this.tutHintTween) {
+      this.tutHintTween.stop()
+      this.tutHintTween = null
+    }
+
+    const targets = [
+      this.tutOverlayDim, this.tutBox, this.tutBoxBorder, this.tutCharImg,
+      this.tutNameBg, this.tutNameText, this.tutBodyText, this.tutHintText,
+    ]
+    this.tweens.add({
+      targets,
+      alpha: 0,
+      duration: 300,
+      ease: 'Sine.easeIn',
+      onComplete: () => targets.forEach(t => { if (t) t.setVisible(false) }),
+    })
   }
 }
